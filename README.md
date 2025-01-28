@@ -8,6 +8,8 @@ It has the following features:
 - Pressure input detection
 - Color selection
 
+Note: The undo and redo buttons are a bit buggy and often take two presses to work
+
 The icon used is from [here](https://www.flaticon.com/free-icon/pencil_200389)
 
 Visit https://drivel.cherrymint.live to try it and/or install it as a WPA
