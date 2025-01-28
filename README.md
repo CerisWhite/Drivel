@@ -8,7 +8,7 @@ It has the following features:
 - Pressure input detection
 - Color selection
 
-Note: The undo and redo buttons are a bit buggy and often take two presses to work
+Note: The undo and redo buttons are a bit buggy and often take two presses to work. Using ctrl-z and ctrl-y will work as intended.
 
 The icon used is from [here](https://www.flaticon.com/free-icon/pencil_200389)
 
