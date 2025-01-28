@@ -241,18 +241,75 @@ window.onload = function () {
     MainContainer.appendChild(LowerContainer);
 
     const LayerPanel = document.createElement('div');
-    LayerPanel.id = 'LayerPanel';
-    LayerPanel.style.cssText = `
-        width: 50px;
-        height: 100%;
-        background: #f0f0f0;
-        border-right: 1px solid #ddd;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding-top: 10px;
-    `;
-    LowerContainer.appendChild(LayerPanel);
+	LayerPanel.id = 'LayerPanel';
+	LayerPanel.style.cssText = `
+	    width: 70px;
+	    background: #f0f0f0;
+	    border-right: 1px solid #ddd;
+	    display: flex;
+	    flex-direction: column;
+	    align-items: center;
+	    height: 100%;
+	`;
+	LowerContainer.appendChild(LayerPanel);
+	
+	const LayerScrollContainer = document.createElement('div');
+	LayerScrollContainer.style.cssText = `
+	    flex: 1;
+	    width: 100%;
+	    overflow-y: auto;
+	    overflow-x: hidden;
+	    display: flex;
+	    flex-direction: column;
+	    align-items: center;
+	    padding: 10px 0;
+	`;
+	LayerPanel.appendChild(LayerScrollContainer);
+	
+	const UndoRedoContainer = document.createElement('div');
+	UndoRedoContainer.style.cssText = `
+	    width: 100%;
+	    padding: 10px 5px;
+	    display: flex;
+	    justify-content: space-around;
+	    background: #e0e0e0;
+	    border-top: 1px solid #ddd;
+	`;
+	LayerPanel.appendChild(UndoRedoContainer);
+	
+	const UndoButton = document.createElement('button');
+	UndoButton.innerHTML = '↶';
+	UndoButton.style.cssText = `
+	    width: 25px;
+	    height: 25px;
+	    border: none;
+	    border-radius: 4px;
+	    background: #ddd;
+	    cursor: pointer;
+	    font-size: 16px;
+	    display: flex;
+	    align-items: center;
+	    justify-content: center;
+	`;
+	UndoButton.onclick = Undo;
+	UndoRedoContainer.appendChild(UndoButton);
+	
+	const RedoButton = document.createElement('button');
+	RedoButton.innerHTML = '↷';
+	RedoButton.style.cssText = `
+	    width: 25px;
+	    height: 25px;
+	    border: none;
+	    border-radius: 4px;
+	    background: #ddd;
+	    cursor: pointer;
+	    font-size: 16px;
+	    display: flex;
+	    align-items: center;
+	    justify-content: center;
+	`;
+	RedoButton.onclick = Redo;
+	UndoRedoContainer.appendChild(RedoButton);
 
     const CanvasContainer = document.createElement('div');
     CanvasContainer.id = 'CanvasContainer';
@@ -291,7 +348,7 @@ window.onload = function () {
         ToolsContainer.appendChild(Button);
     });
 
-    const Actions = ['Save', 'Load', 'Export'];
+    const Actions = ['Export', 'Import', 'Save', 'Load'];
     Actions.forEach(Action => {
         const Button = document.createElement('button');
         Button.textContent = Action;
@@ -312,6 +369,8 @@ window.onload = function () {
 		        ExportCanvas();
 		    } else if (Action === 'Load') {
 		        LoadCanvas();
+		    } else if (Action === 'Import') {
+		        ImportImage();
 		    }
 		});
         ActionsContainer.appendChild(Button);
@@ -383,22 +442,19 @@ window.onload = function () {
 	        width: 16px;
 	        height: 16px;
 	    }
+		#LayerPanel {
+	        width: 70px;
+	        padding: 10px;
+	        box-sizing: border-box;
+	    }
+		#LayerPanel button:hover {
+	        background-color: #bbb !important;
+	    }
+	    #LayerPanel button:active {
+	        background-color: #999 !important;
+	    }
     `;
     document.head.appendChild(StyleSheet);
-
-    const AddLayerBtn = document.createElement('button');
-    AddLayerBtn.textContent = '+';
-    AddLayerBtn.style.cssText = `
-        width: 30px;
-        height: 30px;
-        border: none;
-        border-radius: 4px;
-        background: #ddd;
-        cursor: pointer;
-        margin-bottom: 10px;
-    `;
-    AddLayerBtn.onclick = AddLayer;
-    LayerPanel.appendChild(AddLayerBtn);
 
     SetupCanvas();
     SetupEventListeners();
@@ -445,6 +501,7 @@ function UpdateCanvas() {
 
     Layers.forEach(Layer => {
         if (Layer.visible) {
+			MainCtx.globalAlpha = Layer.opacity;
             MainCtx.drawImage(Layer.canvas, 0, 0);
         }
     });
@@ -571,7 +628,8 @@ function AddLayer() {
         canvas: NewCanvas,
         ctx: NewCtx,
         visible: true,
-        color: DistinctColor
+        color: DistinctColor,
+        opacity: 1
     });
 
     CurrentLayer = Layers.length - 1;
@@ -579,8 +637,8 @@ function AddLayer() {
 }
 
 function UpdateLayerPanel() {
-    const LayerPanel = document.getElementById('LayerPanel');
-    LayerPanel.innerHTML = '';
+    const LayerScrollContainer = document.querySelector('#LayerPanel > div');
+    LayerScrollContainer.innerHTML = '';
 
     const AddBtn = document.createElement('button');
     AddBtn.textContent = '+';
@@ -594,15 +652,19 @@ function UpdateLayerPanel() {
         margin-bottom: 10px;
     `;
     AddBtn.onclick = AddLayer;
-    LayerPanel.appendChild(AddBtn);
+    LayerScrollContainer.appendChild(AddBtn);
 
     Layers.forEach((Layer, Index) => {
+        const LayerContainer = document.createElement('div');
+        LayerContainer.style.cssText = `
+            margin-bottom: 15px;
+        `;
+
         const LayerDiv = document.createElement('div');
         LayerDiv.className = 'Layer';
         LayerDiv.style.cssText = `
             width: 40px;
             height: 40px;
-            margin: 5px;
             background: ${Layer.color};
             position: relative;
             cursor: pointer;
@@ -653,9 +715,26 @@ function UpdateLayerPanel() {
             RemoveLayer(Index);
         };
 
+        const OpacitySlider = document.createElement('input');
+        OpacitySlider.type = 'range';
+        OpacitySlider.min = '0';
+        OpacitySlider.max = '1';
+        OpacitySlider.step = '0.01';
+        OpacitySlider.value = Layer.opacity;
+        OpacitySlider.style.cssText = `
+            width: 40px;
+            margin-top: 5px;
+        `;
+        OpacitySlider.oninput = (e) => {
+            Layer.opacity = parseFloat(e.target.value);
+            UpdateCanvas();
+        };
+
         LayerDiv.appendChild(VisibilityBtn);
         LayerDiv.appendChild(DeleteBtn);
-        LayerPanel.appendChild(LayerDiv);
+        LayerContainer.appendChild(LayerDiv);
+        LayerContainer.appendChild(OpacitySlider);
+        LayerScrollContainer.appendChild(LayerContainer);
     });
 }
 
@@ -841,4 +920,56 @@ function LoadStateToLayers(StateDataURL) {
         Layers[0].ctx.drawImage(Img, 0, 0);
         UpdateCanvas();
     };
+}
+
+function ImportImage() {
+    const Input = document.createElement('input');
+    Input.type = 'file';
+    Input.accept = 'image/*';
+    Input.onchange = (e) => {
+        const File = e.target.files[0];
+        if (File) {
+            const Reader = new FileReader();
+            Reader.onload = (event) => {
+                const Img = new Image();
+                Img.onload = () => {
+                    const NewCanvas = document.createElement('canvas');
+                    NewCanvas.width = Canvas.width;
+                    NewCanvas.height = Canvas.height;
+                    const NewCtx = NewCanvas.getContext('2d');
+
+                    const Scale = Math.min(
+                        Canvas.width / Img.width,
+                        Canvas.height / Img.height
+                    );
+                    const X = (Canvas.width - Img.width * Scale) / 2;
+                    const Y = (Canvas.height - Img.height * Scale) / 2;
+
+                    NewCtx.drawImage(
+                        Img,
+                        X,
+                        Y,
+                        Img.width * Scale,
+                        Img.height * Scale
+                    );
+
+                    Layers.push({
+                        canvas: NewCanvas,
+                        ctx: NewCtx,
+                        visible: true,
+                        color: GenerateDistinctColor(),
+                        opacity: 1
+                    });
+
+                    CurrentLayer = Layers.length - 1;
+                    UpdateLayerPanel();
+                    UpdateCanvas();
+                    SaveState();
+                };
+                Img.src = event.target.result;
+            };
+            Reader.readAsDataURL(File);
+        }
+    };
+    Input.click();
 }
