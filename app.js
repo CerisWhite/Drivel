@@ -114,13 +114,44 @@ window.onload = function () {
 
 function SetupCanvas() {
     Canvas = document.createElement('canvas');
-    Canvas.width = 1024;
-    Canvas.height = 768;
+    const container = document.getElementById('CanvasContainer');
+    
+    const toolbarHeight = document.getElementById('Toolbar').offsetHeight;
+    const availableWidth = container.clientWidth;
+    const availableHeight = window.innerHeight - toolbarHeight;
+    
+    Canvas.width = availableWidth - 10;
+    Canvas.height = availableHeight - 10;
+    
     document.getElementById('CanvasContainer').appendChild(Canvas);
-
     AddLayer();
     SaveState();
     SetupEventListeners();
+    
+    window.addEventListener('resize', () => {
+        const newWidth = container.clientWidth - 10;
+        const newHeight = window.innerHeight - toolbarHeight - 10;
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = Canvas.width;
+        tempCanvas.height = Canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(Canvas, 0, 0);
+        
+        Canvas.width = newWidth;
+        Canvas.height = newHeight;
+        Layers.forEach(layer => {
+            const newLayerCanvas = document.createElement('canvas');
+            newLayerCanvas.width = newWidth;
+            newLayerCanvas.height = newHeight;
+            const newCtx = newLayerCanvas.getContext('2d');
+            newCtx.drawImage(layer.canvas, 0, 0);
+            layer.canvas = newLayerCanvas;
+            layer.ctx = newCtx;
+        });
+        
+        UpdateCanvas();
+    });
 }
 
 function UpdateCanvas() {
@@ -381,6 +412,70 @@ function UpdateLayerPanel() {
             UpdateCanvas();
         };
 
+		const ArrowsContainer = document.createElement('div');
+        ArrowsContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            font-size: 10px;
+            line-height: 1;
+        `;
+
+        const UpArrow = document.createElement('button');
+        UpArrow.innerHTML = '&#9650;';
+        UpArrow.style.cssText = `
+            width: 12px;
+            height: 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            color: ${Index === 0 ? '#999' : '#333'};
+            -webkit-appearance: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        UpArrow.onclick = (e) => {
+            e.stopPropagation();
+            if (Index > 0) {
+                [Layers[Index], Layers[Index - 1]] = [Layers[Index - 1], Layers[Index]];
+                if (CurrentLayer === Index) CurrentLayer--;
+                else if (CurrentLayer === Index - 1) CurrentLayer++;
+                UpdateCanvas();
+                UpdateLayerPanel();
+            }
+        };
+
+        const DownArrow = document.createElement('button');
+        DownArrow.innerHTML = '&#9660;';
+        DownArrow.style.cssText = UpArrow.style.cssText;
+        DownArrow.style.color = Index === Layers.length - 1 ? '#999' : '#333';
+        DownArrow.onclick = (e) => {
+            e.stopPropagation();
+            if (Index < Layers.length - 1) {
+                [Layers[Index], Layers[Index + 1]] = [Layers[Index + 1], Layers[Index]];
+                if (CurrentLayer === Index) CurrentLayer++;
+                else if (CurrentLayer === Index + 1) CurrentLayer--;
+                UpdateCanvas();
+                UpdateLayerPanel();
+            }
+        };
+
+        UpArrow.disabled = Index === 0;
+        DownArrow.disabled = Index === Layers.length - 1;
+
+        ArrowsContainer.appendChild(UpArrow);
+        ArrowsContainer.appendChild(DownArrow);
+
+        ControlsContainer.style.cssText = `
+            display: grid;
+            grid-template-columns: auto auto auto auto;
+            gap: 2px;
+            align-items: center;
+            margin-top: 4px;
+        `;
+
+        ControlsContainer.appendChild(ArrowsContainer);
         ControlsContainer.appendChild(VisibilityBtn);
         ControlsContainer.appendChild(DeleteBtn);
         LayerContainer.appendChild(PreviewCanvas);
