@@ -1,13 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<link rel="stylesheet" href="styles.css">
-	<link rel="manifest" href="manifest.json">
-	<meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drivel</title>
-    <script src="app.js"></script>
 </head>
 <body>
-	<p>Loading Drivel...</p>
+    <div id="MainContainer">
+        <div id="Toolbar">
+            <div class="ToolsContainer">
+                <button class="ToolButton" data-tool="pencil">pencil</button>
+                <button class="ToolButton" data-tool="pen">pen</button>
+                <button class="ToolButton" data-tool="eraser">eraser</button>
+            </div>
+            
+            <div class="ActionsContainer">
+                <button class="ActionButton" data-action="export">Export</button>
+                <button class="ActionButton" data-action="import">Import</button>
+                <button class="ActionButton" data-action="save">Save</button>
+                <button class="ActionButton" data-action="load">Load</button>
+            </div>
+            
+            <div class="ColorContainer">
+                <button class="ColorButton" data-color-index="0" data-current-color="#000000"></button>
+                <button class="ColorButton" data-color-index="1" data-current-color="#ffffff"></button>
+            </div>
+            
+            <div class="PressureContainer">
+                <div class="PressureToggleContainer">
+                    <label class="PressureToggleLabel">Use Pressure:</label>
+                    <input type="checkbox" id="PressureToggle" checked>
+                </div>
+                <div class="PressureSliderContainer">
+                    <label class="PressureLabel">Sensitivity:</label>
+                    <input type="range" id="PressureSlider" min="0.1" max="3" step="0.1" value="1">
+                    <span id="PressureValue">1.0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="LowerContainer">
+            <div id="LayerPanel">
+                <div class="LayerScrollContainer"></div>
+                <div class="UndoRedoContainer">
+                    <button id="UndoButton">↶</button>
+                    <button id="RedoButton">↷</button>
+                </div>
+            </div>
+            
+            <div id="CanvasContainer"></div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
 </body>
 </html>
