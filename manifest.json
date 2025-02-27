@@ -11,5 +11,10 @@
             "sizes": "192x192",
             "type": "image/png"
         }
-    ]
+    ],
+	"brushes": [
+		{ "file": "pencil.json" },
+		{ "file": "pen.json" },
+		{ "file": "eraser.json" }
+	]
 }
