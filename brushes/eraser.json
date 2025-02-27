@@ -1,0 +1,13 @@
+{
+  "name": "Eraser",
+  "description": "Removes drawn content",
+  "icon": "🧽",
+  "properties": {
+    "lineWidth": 4,
+    "lineWidthFactor": 1,
+    "strokeStyle": "#ffffff",
+    "globalCompositeOperation": "destination-out",
+    "lineCap": "round",
+    "lineJoin": "round"
+  }
+}

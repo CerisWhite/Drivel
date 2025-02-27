@@ -1,0 +1,13 @@
+{
+  "name": "Pencil",
+  "description": "Basic pencil tool with pressure sensitivity",
+  "icon": "✏️",
+  "properties": {
+    "lineWidth": 2,
+    "lineWidthFactor": 1,
+    "strokeStyle": "currentColor",
+    "globalCompositeOperation": "source-over",
+    "lineCap": "round",
+    "lineJoin": "round"
+  }
+}

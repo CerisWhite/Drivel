@@ -14,11 +14,12 @@ body {
     display: flex;
     flex-direction: column;
     background: white;
+	overflow: hidden;
 }
 
 #Toolbar {
     height: 50px;
-    width: calc(100% - 20px);
+    width: 100%;
     background: #f0f0f0;
     display: flex;
     align-items: center;
@@ -245,4 +246,24 @@ input[type="range"]:disabled {
 canvas {
     background: white;
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+.BrushSelector {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    min-width: 150px;
+    font-size: 14px;
+}
+
+.BrushSelector:hover {
+    border-color: #aaa;
+}
+
+.BrushSelector:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
 }
