@@ -17,12 +17,12 @@ let CurrentLayer = 0;
 let UndoStack = [];
 let RedoStack = [];
 let LastX, LastY;
-let UsePressure = true;
 let PressureSensitivity = 1;
 let resizingLayer = null;
 let originalAspectRatio = 1;
 let Brushes = [];
 let CurrentBrush = null;
+let BackgroundColor = null; // null means transparent/alpha
 
 function loadBrushes() {
 	return fetch('/manifest.json')
@@ -107,14 +107,8 @@ window.onload = function () {
 		});
 	});
 	
-	const pressureToggle = document.getElementById('PressureToggle');
 	const pressureSlider = document.getElementById('PressureSlider');
 	const pressureValue = document.getElementById('PressureValue');
-	
-	pressureToggle.addEventListener('change', (e) => {
-		UsePressure = e.target.checked;
-		pressureSlider.disabled = !UsePressure;
-	});
 	
 	pressureSlider.addEventListener('input', (e) => {
 		PressureSensitivity = parseFloat(e.target.value);
@@ -124,10 +118,64 @@ window.onload = function () {
 	document.getElementById('UndoButton').addEventListener('click', Undo);
 	document.getElementById('RedoButton').addEventListener('click', Redo);
 	
+	// Setup background color selector
+	const backgroundSwatch = document.getElementById('BackgroundColorSwatch');
+	const clearBgButton = document.getElementById('ClearBackgroundColor');
+	
+	backgroundSwatch.addEventListener('click', function() {
+		const existingPicker = document.querySelector('.background-color-picker');
+		if (!existingPicker) {
+			const ColorPicker = document.createElement('input');
+			ColorPicker.type = 'color';
+			ColorPicker.value = BackgroundColor || '#ffffff';
+			ColorPicker.className = 'background-color-picker';
+			ColorPicker.style.cssText = `
+				position: absolute;
+				opacity: 1;
+				z-index: 1001;
+				top: ${this.getBoundingClientRect().top + 30}px;
+				left: ${this.getBoundingClientRect().left}px;
+			`;
+			
+			ColorPicker.addEventListener('input', (e) => {
+				const newColor = e.target.value;
+				BackgroundColor = newColor;
+				applyBackgroundColor();
+			});
+			
+			ColorPicker.addEventListener('change', (e) => {
+				ColorPicker.remove();
+			});
+			
+			document.body.appendChild(ColorPicker);
+			setTimeout(() => ColorPicker.click(), 50);
+		}
+	});
+	
+	clearBgButton.addEventListener('click', function() {
+		BackgroundColor = null;
+		applyBackgroundColor();
+	});
+	
+	function applyBackgroundColor() {
+		if (BackgroundColor) {
+			backgroundSwatch.style.background = BackgroundColor;
+			Canvas.style.background = BackgroundColor;
+		} else {
+			// Reset to checkerboard pattern
+			backgroundSwatch.style.background = '';
+			Canvas.style.background = 'white';
+		}
+	}
+	
 	document.addEventListener('click', (e) => {
-		if (!e.target.closest('.ColorButton') && !e.target.classList.contains('color-picker-input')) {
+		if (!e.target.closest('.ColorButton') && !e.target.classList.contains('color-picker-input') &&
+			!e.target.closest('#BackgroundColorSwatch') && !e.target.classList.contains('background-color-picker')) {
 			const existingPicker = document.querySelector('.color-picker-input');
 			if (existingPicker) existingPicker.remove();
+			
+			const existingBgPicker = document.querySelector('.background-color-picker');
+			if (existingBgPicker) existingBgPicker.remove();
 		}
 	});
 	
@@ -270,7 +318,8 @@ function Draw(e) {
 	const Y = e.clientY - Rect.top;
 	const RawPressure = e.pressure !== undefined ? e.pressure : 0.5;
 	
-	const AdjustedPressure = UsePressure 
+	// Disable pressure when PressureSensitivity is 0
+	const AdjustedPressure = PressureSensitivity > 0
 		? Math.pow(RawPressure, 1 / PressureSensitivity)
 		: 1;
 	
@@ -555,7 +604,8 @@ function SaveCanvas() {
 			redoStack: RedoStack,
 			canvasWidth: Canvas.width,
 			canvasHeight: Canvas.height,
-			currentLayer: CurrentLayer
+			currentLayer: CurrentLayer,
+			backgroundColor: BackgroundColor
 		};
 
 		const SaveBlob = new Blob([JSON.stringify(SaveData)], {type: 'application/json'});
@@ -584,6 +634,21 @@ function LoadCanvas() {
 			
 			Canvas.width = SaveData.canvasWidth;
 			Canvas.height = SaveData.canvasHeight;
+
+			// Load background color if it exists
+			if (SaveData.backgroundColor) {
+				BackgroundColor = SaveData.backgroundColor;
+				if (document.getElementById('BackgroundColorSwatch')) {
+					document.getElementById('BackgroundColorSwatch').style.background = BackgroundColor;
+				}
+				Canvas.style.background = BackgroundColor;
+			} else {
+				BackgroundColor = null;
+				if (document.getElementById('BackgroundColorSwatch')) {
+					document.getElementById('BackgroundColorSwatch').style.background = '';
+				}
+				Canvas.style.background = 'white';
+			}
 
 			const LayerPromises = SaveData.layers.map((layerData, index) => {
 				return new Promise((resolve) => {

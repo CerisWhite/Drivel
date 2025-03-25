@@ -106,32 +106,15 @@ body {
     gap: 10px;
 }
 
-.PressureToggleContainer {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.PressureToggleLabel, .PressureLabel {
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-}
-
-input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-}
-
 .PressureSliderContainer {
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-#PressureValue {
+.PressureLabel {
     font-family: Arial, sans-serif;
     font-size: 14px;
-    width: 30px;
 }
 
 input[type="range"] {
@@ -172,6 +155,12 @@ input[type="range"]:disabled {
     opacity: 0.5;
 }
 
+#PressureValue {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    width: 30px;
+}
+
 .LowerContainer {
     flex: 1;
     display: flex;
@@ -200,6 +189,63 @@ input[type="range"]:disabled {
     flex-direction: column;
     align-items: center;
     padding: 10px 0;
+}
+
+.BackgroundColorContainer {
+    width: 100%;
+    padding: 10px 5px;
+    background: #e8e8e8;
+    border-top: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.BackgroundColorLabel {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+}
+
+.BackgroundColorPreview {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#BackgroundColorSwatch {
+    width: 30px;
+    height: 20px;
+    border: 1px solid #999;
+    border-radius: 3px;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 10px 10px;
+    background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+}
+
+#ClearBackgroundColor {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: #999;
+    color: white;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#ClearBackgroundColor:hover {
+    background: #777;
 }
 
 .UndoRedoContainer {
