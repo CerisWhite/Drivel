@@ -290,6 +290,7 @@ input[type="range"]:disabled {
 }
 
 canvas {
+    touch-action: none;
     background: white;
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
