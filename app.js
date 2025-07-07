@@ -225,9 +225,25 @@ window.onload = function () {
 	}
 };
 
+function getToolbarHeight() {
+    const toolbar = document.getElementById('Toolbar');
+    return toolbar ? toolbar.offsetHeight : 50;
+}
+
+function updateCanvasContainerHeight() {
+    const toolbarHeight = getToolbarHeight();
+    const lowerContainer = document.querySelector('.LowerContainer');
+    if (lowerContainer) {
+        lowerContainer.style.setProperty('--toolbar-height', `${toolbarHeight}px`);
+        lowerContainer.style.height = `calc(100vh - ${toolbarHeight}px)`;
+    }
+}
+
 function SetupCanvas() {
 	Canvas = document.createElement('canvas');
 	const container = document.getElementById('CanvasContainer');
+
+    updateCanvasContainerHeight();
 	
 	const toolbarHeight = document.getElementById('Toolbar').offsetHeight;
 	const availableWidth = container.clientWidth;
@@ -242,8 +258,10 @@ function SetupCanvas() {
 	SetupEventListeners();
 	
 	window.addEventListener('resize', () => {
+		updateCanvasContainerHeight();
+        const newToolbarHeight = getToolbarHeight();
 		const newWidth = container.clientWidth - 10;
-		const newHeight = window.innerHeight - toolbarHeight - 10;
+		const newHeight = window.innerHeight - newToolbarHeight - 10;
 		
 		const tempCanvas = document.createElement('canvas');
 		tempCanvas.width = Canvas.width;
