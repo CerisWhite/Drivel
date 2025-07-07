@@ -118,7 +118,6 @@ window.onload = function () {
 	document.getElementById('UndoButton').addEventListener('click', Undo);
 	document.getElementById('RedoButton').addEventListener('click', Redo);
 	
-	// Setup background color selector
 	const backgroundSwatch = document.getElementById('BackgroundColorSwatch');
 	const clearBgButton = document.getElementById('ClearBackgroundColor');
 	
@@ -162,7 +161,6 @@ window.onload = function () {
 			backgroundSwatch.style.background = BackgroundColor;
 			Canvas.style.background = BackgroundColor;
 		} else {
-			// Reset to checkerboard pattern
 			backgroundSwatch.style.background = '';
 			Canvas.style.background = 'white';
 		}
@@ -318,7 +316,6 @@ function Draw(e) {
 	const Y = e.clientY - Rect.top;
 	const RawPressure = e.pressure !== undefined ? e.pressure : 0.5;
 	
-	// Disable pressure when PressureSensitivity is 0
 	const AdjustedPressure = PressureSensitivity > 0
 		? Math.pow(RawPressure, 1 / PressureSensitivity)
 		: 1;
@@ -598,10 +595,8 @@ function SaveCanvas() {
 			layers: Layers.map(layer => ({
 				data: layer.canvas.toDataURL(),
 				visible: layer.visible,
-				color: layer.color
+				opacity: layer.opacity
 			})),
-			undoStack: UndoStack,
-			redoStack: RedoStack,
 			canvasWidth: Canvas.width,
 			canvasHeight: Canvas.height,
 			currentLayer: CurrentLayer,
@@ -635,7 +630,6 @@ function LoadCanvas() {
 			Canvas.width = SaveData.canvasWidth;
 			Canvas.height = SaveData.canvasHeight;
 
-			// Load background color if it exists
 			if (SaveData.backgroundColor) {
 				BackgroundColor = SaveData.backgroundColor;
 				if (document.getElementById('BackgroundColorSwatch')) {
@@ -664,7 +658,7 @@ function LoadCanvas() {
 							canvas: NewCanvas,
 							ctx: NewCtx,
 							visible: layerData.visible,
-							color: layerData.color
+							opacity: layerData.opacity !== undefined ? layerData.opacity : 1
 						});
 					};
 					Img.src = layerData.data;
@@ -674,14 +668,15 @@ function LoadCanvas() {
 			Promise.all(LayerPromises).then(loadedLayers => {
 				Layers = loadedLayers;
 
-				UndoStack = SaveData.undoStack;
-				RedoStack = SaveData.redoStack;
+				UndoStack = [];
+				RedoStack = [];
 
-				CurrentLayer = SaveData.currentLayer;
+				CurrentLayer = SaveData.currentLayer || 0;
 				Ctx = Layers[CurrentLayer].ctx;
 
 				UpdateLayerPanel();
 				UpdateCanvas();
+				SaveState();
 			});
 		};
 		Reader.readAsText(File);
@@ -699,8 +694,14 @@ function ExportCanvas() {
 		ExportCanvas.height = Canvas.height;
 		const ExportCtx = ExportCanvas.getContext('2d');
 
+		if (BackgroundColor) {
+			ExportCtx.fillStyle = BackgroundColor;
+			ExportCtx.fillRect(0, 0, Canvas.width, Canvas.height);
+		}
+
 		Layers.forEach(Layer => {
 			if (Layer.visible) {
+				ExportCtx.globalAlpha = Layer.opacity;
 				ExportCtx.drawImage(Layer.canvas, 0, 0);
 			}
 		});
@@ -719,18 +720,17 @@ function ExportCanvas() {
 function SaveState() {
 	RedoStack = [];
 	
-	const StateCanvas = document.createElement('canvas');
-	StateCanvas.width = Canvas.width;
-	StateCanvas.height = Canvas.height;
-	const StateCtx = StateCanvas.getContext('2d');
+	const state = {
+		layers: Layers.map(layer => ({
+			data: layer.canvas.toDataURL(),
+			visible: layer.visible,
+			opacity: layer.opacity
+		})),
+		currentLayer: CurrentLayer,
+		backgroundColor: BackgroundColor
+	};
 	
-	Layers.forEach(Layer => {
-		if (Layer.visible) {
-			StateCtx.drawImage(Layer.canvas, 0, 0);
-		}
-	});
-	
-	UndoStack.push(StateCanvas.toDataURL());
+	UndoStack.push(JSON.stringify(state));
 	
 	const MaxUndoSteps = 20;
 	if (UndoStack.length > MaxUndoSteps) {
@@ -743,7 +743,7 @@ function Undo() {
 		RedoStack.push(UndoStack.pop());
 		const PreviousState = UndoStack[UndoStack.length - 1];
 		
-		LoadStateToLayers(PreviousState);
+		LoadStateFromJSON(PreviousState);
 	}
 }
 
@@ -752,21 +752,56 @@ function Redo() {
 		const NextState = RedoStack.pop();
 		UndoStack.push(NextState);
 		
-		LoadStateToLayers(NextState);
+		LoadStateFromJSON(NextState);
 	}
 }
 
-function LoadStateToLayers(StateDataURL) {
-	const Img = new Image();
-	Img.src = StateDataURL;
-	Img.onload = () => {
-		Layers.forEach(Layer => {
-			Layer.ctx.clearRect(0, 0, Canvas.width, Canvas.height);
+function LoadStateFromJSON(stateJSON) {
+	const state = JSON.parse(stateJSON);
+	Layers = [];
+	
+	BackgroundColor = state.backgroundColor || null;
+	if (BackgroundColor) {
+		if (document.getElementById('BackgroundColorSwatch')) {
+			document.getElementById('BackgroundColorSwatch').style.background = BackgroundColor;
+		}
+		Canvas.style.background = BackgroundColor;
+	} else {
+		if (document.getElementById('BackgroundColorSwatch')) {
+			document.getElementById('BackgroundColorSwatch').style.background = '';
+		}
+		Canvas.style.background = 'white';
+	}
+	
+	const layerPromises = state.layers.map((layerData) => {
+		return new Promise((resolve) => {
+			const NewCanvas = document.createElement('canvas');
+			NewCanvas.width = Canvas.width;
+			NewCanvas.height = Canvas.height;
+			const NewCtx = NewCanvas.getContext('2d');
+			
+			const Img = new Image();
+			Img.onload = () => {
+				NewCtx.drawImage(Img, 0, 0);
+				resolve({
+					canvas: NewCanvas,
+					ctx: NewCtx,
+					visible: layerData.visible,
+					opacity: layerData.opacity
+				});
+			};
+			Img.src = layerData.data;
 		});
+	});
+	
+	Promise.all(layerPromises).then(loadedLayers => {
+		Layers = loadedLayers;
+		CurrentLayer = state.currentLayer || 0;
+		Ctx = Layers[CurrentLayer].ctx;
 		
-		Layers[0].ctx.drawImage(Img, 0, 0);
+		UpdateLayerPanel();
 		UpdateCanvas();
-	};
+	});
 }
 
 function ImportImage() {
