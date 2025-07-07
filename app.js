@@ -243,7 +243,7 @@ function SetupCanvas() {
 	Canvas = document.createElement('canvas');
 	const container = document.getElementById('CanvasContainer');
 
-    updateCanvasContainerHeight();
+        updateCanvasContainerHeight();
 	
 	const toolbarHeight = document.getElementById('Toolbar').offsetHeight;
 	const availableWidth = container.clientWidth;
@@ -259,16 +259,16 @@ function SetupCanvas() {
 	
 	window.addEventListener('resize', () => {
 		updateCanvasContainerHeight();
-        const newToolbarHeight = getToolbarHeight();
+	        const newToolbarHeight = getToolbarHeight();
 		const newWidth = container.clientWidth - 10;
 		const newHeight = window.innerHeight - newToolbarHeight - 10;
-		
+			
 		const tempCanvas = document.createElement('canvas');
 		tempCanvas.width = Canvas.width;
 		tempCanvas.height = Canvas.height;
 		const tempCtx = tempCanvas.getContext('2d');
 		tempCtx.drawImage(Canvas, 0, 0);
-		
+
 		Canvas.width = newWidth;
 		Canvas.height = newHeight;
 		Layers.forEach(layer => {
@@ -280,7 +280,7 @@ function SetupCanvas() {
 			layer.canvas = newLayerCanvas;
 			layer.ctx = newCtx;
 		});
-		
+
 		UpdateCanvas();
 	});
 }
