@@ -16,6 +16,7 @@ let Layers = [];
 let CurrentLayer = 0;
 let UndoStack = [];
 let RedoStack = [];
+const MaxUndoSteps = 100;
 let LastX, LastY;
 let PressureSensitivity = 1;
 let resizingLayer = null;
@@ -731,8 +732,6 @@ function SaveState() {
 	};
 	
 	UndoStack.push(JSON.stringify(state));
-	
-	const MaxUndoSteps = 20;
 	if (UndoStack.length > MaxUndoSteps) {
 		UndoStack.shift();
 	}
