@@ -288,6 +288,10 @@ function SetupEventListeners() {
 		if (e.ctrlKey && e.key === 'z') Undo();
 		if (e.ctrlKey && e.key === 'y') Redo();
 	});
+	Canvas.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+        });
 }
 
 function SetTool(Tool) {
