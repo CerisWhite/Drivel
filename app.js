@@ -749,7 +749,11 @@ function SaveState() {
 	const state = {
 		layers: Layers.map(layer => ({
 			data: layer.canvas.toDataURL(),
-		}))
+			visible: layer.visible,
+            		opacity: layer.opacity
+        	})),
+		currentLayer: CurrentLayer,
+		backgroundColor: BackgroundColor
 	};
 	
 	UndoStack.push(JSON.stringify(state));
