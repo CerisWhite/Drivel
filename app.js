@@ -394,6 +394,7 @@ function AddLayer() {
 
 	CurrentLayer = Layers.length - 1;
 	UpdateLayerPanel();
+	SaveState();
 }
 
 function UpdateLayerPanel() {
@@ -469,6 +470,7 @@ function UpdateLayerPanel() {
 			Layer.visible = !Layer.visible;
 			UpdateCanvas();
 			UpdateLayerPanel();
+			SaveState();
 		};
 
 		const DeleteBtn = document.createElement('button');
@@ -534,6 +536,7 @@ function UpdateLayerPanel() {
 				else if (CurrentLayer === Index - 1) CurrentLayer++;
 				UpdateCanvas();
 				UpdateLayerPanel();
+				SaveState();
 			}
 		};
 
@@ -549,6 +552,7 @@ function UpdateLayerPanel() {
 				else if (CurrentLayer === Index + 1) CurrentLayer--;
 				UpdateCanvas();
 				UpdateLayerPanel();
+				SaveState();
 			}
 		};
 
@@ -694,8 +698,7 @@ function LoadCanvas() {
 				UndoStack = [];
 				RedoStack = [];
 
-				CurrentLayer = SaveData.currentLayer || 0;
-				Ctx = Layers[CurrentLayer].ctx;
+				Ctx = Layers[0].ctx;
 
 				UpdateLayerPanel();
 				UpdateCanvas();
@@ -746,11 +749,7 @@ function SaveState() {
 	const state = {
 		layers: Layers.map(layer => ({
 			data: layer.canvas.toDataURL(),
-			visible: layer.visible,
-			opacity: layer.opacity
-		})),
-		currentLayer: CurrentLayer,
-		backgroundColor: BackgroundColor
+		}))
 	};
 	
 	UndoStack.push(JSON.stringify(state));
