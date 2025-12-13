@@ -4,6 +4,7 @@
   "icon": "🧽",
   "properties": {
     "strokeStyle": "#ffffff",
-    "globalCompositeOperation": "destination-out",
+    "globalCompositeOperation": "destination-out"
   }
 }
+
