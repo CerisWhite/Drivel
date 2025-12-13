@@ -1,0 +1,9 @@
+{
+  "name": "Eraser",
+  "description": "Removes drawn content",
+  "icon": "🧽",
+  "properties": {
+    "strokeStyle": "#ffffff",
+    "globalCompositeOperation": "destination-out",
+  }
+}

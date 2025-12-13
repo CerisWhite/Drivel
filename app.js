@@ -98,7 +98,7 @@ function setBrush(brushName) {
 	
 	if (CurrentBrush.properties) {
 		CurrentTool = CurrentBrush.name.toLowerCase();
-		CurrentSize = CurrentBrush.properties.lineWidth || 2;
+		CurrentSize = 2;
 	}
 }
 
@@ -121,10 +121,18 @@ window.onload = function () {
 	
 	const pressureSlider = document.getElementById('PressureSlider');
 	const pressureValue = document.getElementById('PressureValue');
-	
+
 	pressureSlider.addEventListener('input', (e) => {
 		PressureSensitivity = parseFloat(e.target.value);
 		pressureValue.textContent = PressureSensitivity.toFixed(1);
+	});
+
+	const sizeSlider = document.getElementById('SizeSlider');
+	const sizeValue = document.getElementById('SizeValue');
+
+	sizeSlider.addEventListener('input', (e) => {
+		CurrentSize = parseFloat(e.target.value);
+		sizeValue.textContent = CurrentSize.toFixed(1);
 	});
 	
 	document.getElementById('UndoButton').addEventListener('click', Undo);
@@ -385,7 +393,6 @@ function Draw(e) {
 		const minZoom = CurrentBrush.properties.minZoom || 0.1;
 		const maxZoom = CurrentBrush.properties.maxZoom || 10;
 		
-		// Zoom towards center of container
 		const container = document.getElementById('CanvasContainer');
 		const containerRect = container.getBoundingClientRect();
 		const centerX = containerRect.width / 2;
@@ -394,7 +401,6 @@ function Draw(e) {
 		const oldZoom = CanvasZoom;
 		const newZoom = Math.max(minZoom, Math.min(maxZoom, CanvasZoom + deltaY * zoomSensitivity));
 		
-		// Adjust offset to zoom towards center
 		const zoomRatio = newZoom / oldZoom;
 		CanvasOffsetX = centerX - (centerX - CanvasOffsetX) * zoomRatio;
 		CanvasOffsetY = centerY - (centerY - CanvasOffsetY) * zoomRatio;
@@ -428,7 +434,6 @@ function Draw(e) {
 			LayerOffsets[CurrentLayer] = { x: 0, y: 0 };
 		}
 		
-		// Move in canvas space (affected by current zoom)
 		LayerOffsets[CurrentLayer].x += deltaX / CanvasZoom;
 		LayerOffsets[CurrentLayer].y += deltaY / CanvasZoom;
 		
@@ -472,15 +477,12 @@ function Draw(e) {
 	CurrentCtx.lineTo(transformedX, transformedY);
 
 	if (CurrentBrush && CurrentBrush.properties) {
-		CurrentCtx.globalCompositeOperation = 
-			CurrentBrush.properties.globalCompositeOperation || 'source-over';
+		CurrentCtx.globalCompositeOperation = CurrentBrush.properties.globalCompositeOperation || 'source-over';
 		
-		const baseWidth = CurrentBrush.properties.lineWidth;
-		const factor = CurrentBrush.properties.lineWidthFactor || 1;
-		CurrentCtx.lineWidth = baseWidth * factor * AdjustedPressure;
+		CurrentCtx.lineWidth = CurrentSize * AdjustedPressure;
 		CurrentCtx.strokeStyle = CurrentColor;
-		CurrentCtx.lineCap = CurrentBrush.properties.lineCap || 'round';
-		CurrentCtx.lineJoin = CurrentBrush.properties.lineJoin || 'round';
+		CurrentCtx.lineCap = 'round';
+		CurrentCtx.lineJoin = 'round';
 	}
 	
 	CurrentCtx.stroke();
@@ -877,10 +879,19 @@ function ExportCanvas() {
 			ExportCtx.fillRect(0, 0, Canvas.width, Canvas.height);
 		}
 
-		Layers.forEach(Layer => {
+		Layers.forEach((Layer, index) => {
 			if (Layer.visible) {
+				ExportCtx.save();
 				ExportCtx.globalAlpha = Layer.opacity;
+				
+				const offset = LayerOffsets[index] || { x: 0, y: 0 };
+				const scale = LayerScales[index] || 1;
+				
+				ExportCtx.translate(offset.x, offset.y);
+				ExportCtx.scale(scale, scale);
+				
 				ExportCtx.drawImage(Layer.canvas, 0, 0);
+				ExportCtx.restore();
 			}
 		});
 
