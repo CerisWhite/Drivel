@@ -1,0 +1,11 @@
+{
+  "name": "Zoom",
+  "icon": "🔍",
+  "description": "Zoom in and out of the canvas",
+  "type": "zoom",
+  "properties": {
+    "zoomSensitivity": 0.01,
+    "minZoom": 0.1,
+    "maxZoom": 10
+  }
+}

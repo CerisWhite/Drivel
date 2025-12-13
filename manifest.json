@@ -15,6 +15,10 @@
 	"brushes": [
 		{ "file": "pencil.json" },
 		{ "file": "pen.json" },
-		{ "file": "eraser.json" }
+		{ "file": "eraser.json" },
+		{ "file": "pan.json" },
+		{ "file": "zoom.json" },
+		{ "file": "move.json" },
+		{ "file": "scale.json" }
 	]
 }
