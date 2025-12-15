@@ -364,6 +364,7 @@ function StartDrawing(E) {
 		ScaleStartScale = LayerScales[CurrentLayer] || 1;
 	} else if (SelectedTool.type === 'picker') {
         PickColor(E);
+		IsDrawing = false;
     } else {
 		const Coords = GetCanvasCoordinates(E.clientX, E.clientY);
 		
@@ -414,7 +415,7 @@ function Draw(E) {
 		MoveStartX = E.clientX;
 		MoveStartY = E.clientY;
 		
-		UpdateCan‌vasTransform();
+		UpdateCanvasTransform();
 		return;
 	}
 	
