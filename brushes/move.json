@@ -1,7 +1,0 @@
-{
-  "name": "Move",
-  "icon": "✋",
-  "description": "Move the current layer",
-  "type": "move",
-  "properties": {}
-}

@@ -1,7 +1,0 @@
-{
-  "name": "Pan",
-  "icon": "👆",
-  "description": "Pan the canvas view",
-  "type": "pan",
-  "properties": {}
-}
