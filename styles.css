@@ -321,7 +321,7 @@ canvas {
     box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
 
-.BrushSelector {
+.ToolSelector {
     padding: 6px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -331,11 +331,11 @@ canvas {
     font-size: 14px;
 }
 
-.BrushSelector:hover {
+.ToolSelector:hover {
     border-color: #aaa;
 }
 
-.BrushSelector:focus {
+.ToolSelector:focus {
     outline: none;
     border-color: #4CAF50;
     box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);

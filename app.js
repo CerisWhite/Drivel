@@ -18,12 +18,14 @@ let UndoStack = [];
 let RedoStack = [];
 const MaxUndoSteps = 200;
 let LastX, LastY;
+let LastPressure;
 let PressureSensitivity = 1;
-let resizingLayer = null;
-let originalAspectRatio = 1;
-let Brushes = [];
-let CurrentBrush = null;
-let BackgroundColor = null; // null means transparent/alpha
+let ResizingLayer = null;
+let OriginalAspectRatio = 1;
+let Tools = [];
+let SelectedTool = null;
+let BackgroundColor = null;
+let SelectedColorButton = null;
 let CanvasZoom = 1;
 let CanvasOffsetX = 0;
 let CanvasOffsetY = 0;
@@ -35,71 +37,75 @@ let MoveStartY = 0;
 let ScaleStartY = 0;
 let ScaleStartScale = 1;
 
-function loadBrushes() {
+function LoadTools() {
 	return fetch('/manifest.json')
-		.then(response => response.json())
-		.then(manifest => {
-			const brushPromises = manifest.brushes.map(brushInfo => 
-				fetch(`/brushes/${brushInfo.file}`)
-					.then(response => response.json())
+		.then(Response => Response.json())
+		.then(Manifest => {
+			const ToolPromises = Manifest.tools.map(ToolInfo => 
+				fetch(`/tools/${ToolInfo.file}`)
+					.then(Response => Response.json())
 			);
 			
-			return Promise.all(brushPromises);
+			return Promise.all(ToolPromises);
 		})
-		.then(brushes => {
-			Brushes = brushes;
-			populateBrushDropdown();
+		.then(ToolList => {
+			Tools = ToolList;
+			PopulateToolDropdown();
 			
-			const pencilBrush = Brushes.find(brush => brush.name === "Pencil");
-			if (pencilBrush) {
-				setBrush("Pencil");
+			const PencilTool = Tools.find(Tool => Tool.name === "Pencil");
+			if (PencilTool) {
+				SetTool("Pencil");
 				
-				const selector = document.getElementById('BrushSelector');
-				if (selector) {
-					selector.value = "Pencil";
+				const Selector = document.getElementById('ToolSelector');
+				if (Selector) {
+					Selector.value = "Pencil";
 				}
 			}
 			
-			return brushes;
+			return Tools;
 		})
-		.catch(error => {
-			console.error('Error loading brushes:', error);
+		.catch(Error => {
+			console.error('Error loading tools:', Error);
+			return [];
 		});
 }
 
-function populateBrushDropdown() {
-	const selector = document.getElementById('BrushSelector');
-	if (!selector) return;
-	
-	selector.innerHTML = '';
-	
-	Brushes.forEach(brush => {
-		const option = document.createElement('option');
-		option.value = brush.name;
-		option.textContent = brush.icon ? `${brush.icon} ${brush.name}` : brush.name;
-		option.title = brush.description || '';
-		selector.appendChild(option);
-	});
-	
-	selector.addEventListener('change', function(e) {
-		setBrush(e.target.value);
-	});
-}
-
-function setBrush(brushName) {
-	const foundBrush = Brushes.find(brush => brush.name === brushName);
-	
-	if (!foundBrush) {
-		console.error(`Brush not found with name: ${brushName}`);
+function PopulateToolDropdown() {
+	const Selector = document.getElementById('ToolSelector');
+	if (!Selector) {
+		console.error('ToolSelector element not found');
 		return;
 	}
 	
-	CurrentBrush = foundBrush;
+	Selector.innerHTML = '';
 	
-	if (CurrentBrush.properties) {
-		CurrentTool = CurrentBrush.name.toLowerCase();
-		CurrentSize = 2;
+	if (!Tools || Tools.length === 0) {
+		console.error('No tools available to populate');
+		return;
 	}
+	
+	Tools.forEach(Tool => {
+		const Option = document.createElement('option');
+		Option.value = Tool.name;
+		Option.textContent = Tool.icon ? `${Tool.icon} ${Tool.name}` : Tool.name;
+		Option.title = Tool.description || '';
+		Selector.appendChild(Option);
+	});
+	
+	Selector.addEventListener('change', function(E) {
+		SetTool(E.target.value);
+	});
+}
+
+function SetTool(ToolName) {
+	const FoundTool = Tools.find(Tool => Tool.name === ToolName);
+	
+	if (!FoundTool) {
+		console.error(`Tool not found with name: ${ToolName}`);
+		return;
+	}
+	
+	SelectedTool = FoundTool;
 }
 
 window.onload = function () {
@@ -109,41 +115,41 @@ window.onload = function () {
 	document.querySelector('[data-action="import"]').addEventListener('click', ImportImage);
 	document.querySelector('[data-action="reset-view"]').addEventListener('click', ResetView);
 	
-	const colorButtons = document.querySelectorAll('.ColorButton');
-	let SelectedColorButton = colorButtons[0];
+	const ColorButtons = document.querySelectorAll('.ColorButton');
+	SelectedColorButton = ColorButtons[0];
 	SelectedColorButton.style.borderColor = '#000';
 	
-	colorButtons.forEach((ColorButton) => {
-		ColorButton.addEventListener('click', function(e) {
-			handleColorButtonClick.call(this, e);
+	ColorButtons.forEach((ColorButton) => {
+		ColorButton.addEventListener('click', function(E) {
+			HandleColorButtonClick.call(this, E);
 		});
 	});
 	
-	const pressureSlider = document.getElementById('PressureSlider');
-	const pressureValue = document.getElementById('PressureValue');
+	const PressureSlider = document.getElementById('PressureSlider');
+	const PressureValue = document.getElementById('PressureValue');
 
-	pressureSlider.addEventListener('input', (e) => {
-		PressureSensitivity = parseFloat(e.target.value);
-		pressureValue.textContent = PressureSensitivity.toFixed(1);
+	PressureSlider.addEventListener('input', (E) => {
+		PressureSensitivity = parseFloat(E.target.value);
+		PressureValue.textContent = PressureSensitivity.toFixed(1);
 	});
 
-	const sizeSlider = document.getElementById('SizeSlider');
-	const sizeValue = document.getElementById('SizeValue');
+	const SizeSlider = document.getElementById('SizeSlider');
+	const SizeValue = document.getElementById('SizeValue');
 
-	sizeSlider.addEventListener('input', (e) => {
-		CurrentSize = parseFloat(e.target.value);
-		sizeValue.textContent = CurrentSize.toFixed(1);
+	SizeSlider.addEventListener('input', (E) => {
+		CurrentSize = parseInt(E.target.value);
+		SizeValue.textContent = CurrentSize;
 	});
 	
 	document.getElementById('UndoButton').addEventListener('click', Undo);
 	document.getElementById('RedoButton').addEventListener('click', Redo);
 	
-	const backgroundSwatch = document.getElementById('BackgroundColorSwatch');
-	const clearBgButton = document.getElementById('ClearBackgroundColor');
+	const BackgroundSwatch = document.getElementById('BackgroundColorSwatch');
+	const ClearBgButton = document.getElementById('ClearBackgroundColor');
 	
-	backgroundSwatch.addEventListener('click', function() {
-		const existingPicker = document.querySelector('.background-color-picker');
-		if (!existingPicker) {
+	BackgroundSwatch.addEventListener('click', function() {
+		const ExistingPicker = document.querySelector('.background-color-picker');
+		if (!ExistingPicker) {
 			const ColorPicker = document.createElement('input');
 			ColorPicker.type = 'color';
 			ColorPicker.value = BackgroundColor || '#ffffff';
@@ -156,13 +162,13 @@ window.onload = function () {
 				left: ${this.getBoundingClientRect().left}px;
 			`;
 			
-			ColorPicker.addEventListener('input', (e) => {
-				const newColor = e.target.value;
-				BackgroundColor = newColor;
-				applyBackgroundColor();
+			ColorPicker.addEventListener('input', (E) => {
+				const NewColor = E.target.value;
+				BackgroundColor = NewColor;
+				ApplyBackgroundColor();
 			});
 			
-			ColorPicker.addEventListener('change', (e) => {
+			ColorPicker.addEventListener('change', (E) => {
 				ColorPicker.remove();
 			});
 			
@@ -171,40 +177,40 @@ window.onload = function () {
 		}
 	});
 	
-	clearBgButton.addEventListener('click', function() {
+	ClearBgButton.addEventListener('click', function() {
 		BackgroundColor = null;
-		applyBackgroundColor();
+		ApplyBackgroundColor();
 	});
 	
-	function applyBackgroundColor() {
+	function ApplyBackgroundColor() {
 		if (BackgroundColor) {
-			backgroundSwatch.style.background = BackgroundColor;
+			BackgroundSwatch.style.background = BackgroundColor;
 			Canvas.style.background = BackgroundColor;
 		} else {
-			backgroundSwatch.style.background = '';
+			BackgroundSwatch.style.background = '';
 			Canvas.style.background = 'white';
 		}
 	}
 	
-	document.addEventListener('click', (e) => {
-		if (!e.target.closest('.ColorButton') && !e.target.classList.contains('color-picker-input') &&
-			!e.target.closest('#BackgroundColorSwatch') && !e.target.classList.contains('background-color-picker')) {
-			const existingPicker = document.querySelector('.color-picker-input');
-			if (existingPicker) existingPicker.remove();
+	document.addEventListener('click', (E) => {
+		if (!E.target.closest('.ColorButton') && !E.target.classList.contains('color-picker-input') &&
+			!E.target.closest('#BackgroundColorSwatch') && !E.target.classList.contains('background-color-picker')) {
+			const ExistingPicker = document.querySelector('.color-picker-input');
+			if (ExistingPicker) ExistingPicker.remove();
 			
-			const existingBgPicker = document.querySelector('.background-color-picker');
-			if (existingBgPicker) existingBgPicker.remove();
+			const ExistingBgPicker = document.querySelector('.background-color-picker');
+			if (ExistingBgPicker) ExistingBgPicker.remove();
 		}
 	});
 	
-	loadBrushes().then(() => {
+	LoadTools().then(() => {
 		SetupCanvas();
 	});
 	
-	function handleColorButtonClick(e) {
+	function HandleColorButtonClick(E) {
 		if (SelectedColorButton === this) {
-			const existingPicker = document.querySelector('.color-picker-input');
-			if (!existingPicker) {
+			const ExistingPicker = document.querySelector('.color-picker-input');
+			if (!ExistingPicker) {
 				const ColorPicker = document.createElement('input');
 				ColorPicker.type = 'color';
 				ColorPicker.value = this.dataset.currentColor;
@@ -214,14 +220,14 @@ window.onload = function () {
 					left: ${this.getBoundingClientRect().left}px;
 				`;
 				
-				ColorPicker.addEventListener('input', (e) => {
-					const newColor = e.target.value;
-					this.style.background = newColor;
-					this.dataset.currentColor = newColor;
-					CurrentColor = newColor;
+				ColorPicker.addEventListener('input', (E) => {
+					const NewColor = E.target.value;
+					this.style.background = NewColor;
+					this.dataset.currentColor = NewColor;
+					CurrentColor = NewColor;
 				});
 				
-				ColorPicker.addEventListener('change', (e) => {
+				ColorPicker.addEventListener('change', (E) => {
 					ColorPicker.remove();
 				});
 				
@@ -237,39 +243,38 @@ window.onload = function () {
 			this.style.borderColor = '#000';
 			CurrentColor = this.dataset.currentColor;
 			
-			const existingPicker = document.querySelector('.color-picker-input');
-			if (existingPicker) existingPicker.remove();
+			const ExistingPicker = document.querySelector('.color-picker-input');
+			if (ExistingPicker) ExistingPicker.remove();
 		}
-
 	}
 };
 
-function getToolbarHeight() {
-    const toolbar = document.getElementById('Toolbar');
-    return toolbar ? toolbar.offsetHeight : 50;
+function GetToolbarHeight() {
+    const Toolbar = document.getElementById('Toolbar');
+    return Toolbar ? Toolbar.offsetHeight : 50;
 }
 
-function updateCanvasContainerHeight() {
-    const toolbarHeight = getToolbarHeight();
-    const lowerContainer = document.querySelector('.LowerContainer');
-    if (lowerContainer) {
-        lowerContainer.style.setProperty('--toolbar-height', `${toolbarHeight}px`);
-        lowerContainer.style.height = `calc(100vh - ${toolbarHeight}px)`;
+function UpdateCanvasContainerHeight() {
+    const ToolbarHeight = GetToolbarHeight();
+    const LowerContainer = document.querySelector('.LowerContainer');
+    if (LowerContainer) {
+        LowerContainer.style.setProperty('--toolbar-height', `${ToolbarHeight}px`);
+        LowerContainer.style.height = `calc(100vh - ${ToolbarHeight}px)`;
     }
 }
 
 function SetupCanvas() {
 	Canvas = document.createElement('canvas');
-	const container = document.getElementById('CanvasContainer');
+	const Container = document.getElementById('CanvasContainer');
 
-        updateCanvasContainerHeight();
+    UpdateCanvasContainerHeight();
 	
-	const toolbarHeight = document.getElementById('Toolbar').offsetHeight;
-	const availableWidth = container.clientWidth;
-	const availableHeight = window.innerHeight - toolbarHeight;
+	const ToolbarHeight = document.getElementById('Toolbar').offsetHeight;
+	const AvailableWidth = Container.clientWidth;
+	const AvailableHeight = window.innerHeight - ToolbarHeight;
 	
-	Canvas.width = availableWidth - 10;
-	Canvas.height = availableHeight - 10;
+	Canvas.width = AvailableWidth - 10;
+	Canvas.height = AvailableHeight - 10;
 	
 	document.getElementById('CanvasContainer').appendChild(Canvas);
 	AddLayer();
@@ -277,27 +282,27 @@ function SetupCanvas() {
 	SetupEventListeners();
 	
 	window.addEventListener('resize', () => {
-		updateCanvasContainerHeight();
-	        const newToolbarHeight = getToolbarHeight();
-		const newWidth = container.clientWidth - 10;
-		const newHeight = window.innerHeight - newToolbarHeight - 10;
+		UpdateCanvasContainerHeight();
+	    const NewToolbarHeight = GetToolbarHeight();
+		const NewWidth = Container.clientWidth - 10;
+		const NewHeight = window.innerHeight - NewToolbarHeight - 10;
 			
-		const tempCanvas = document.createElement('canvas');
-		tempCanvas.width = Canvas.width;
-		tempCanvas.height = Canvas.height;
-		const tempCtx = tempCanvas.getContext('2d');
-		tempCtx.drawImage(Canvas, 0, 0);
+		const TempCanvas = document.createElement('canvas');
+		TempCanvas.width = Canvas.width;
+		TempCanvas.height = Canvas.height;
+		const TempCtx = TempCanvas.getContext('2d');
+		TempCtx.drawImage(Canvas, 0, 0);
 
-		Canvas.width = newWidth;
-		Canvas.height = newHeight;
-		Layers.forEach(layer => {
-			const newLayerCanvas = document.createElement('canvas');
-			newLayerCanvas.width = newWidth;
-			newLayerCanvas.height = newHeight;
-			const newCtx = newLayerCanvas.getContext('2d');
-			newCtx.drawImage(layer.canvas, 0, 0);
-			layer.canvas = newLayerCanvas;
-			layer.ctx = newCtx;
+		Canvas.width = NewWidth;
+		Canvas.height = NewHeight;
+		Layers.forEach(Layer => {
+			const NewLayerCanvas = document.createElement('canvas');
+			NewLayerCanvas.width = NewWidth;
+			NewLayerCanvas.height = NewHeight;
+			const NewCtx = NewLayerCanvas.getContext('2d');
+			NewCtx.drawImage(Layer.canvas, 0, 0);
+			Layer.canvas = NewLayerCanvas;
+			Layer.ctx = NewCtx;
 		});
 
 		UpdateCanvas();
@@ -309,16 +314,16 @@ function UpdateCanvas() {
 	const MainCtx = Canvas.getContext('2d');
 	MainCtx.clearRect(0, 0, Canvas.width, Canvas.height);
 
-	Layers.forEach((Layer, index) => {
+	Layers.forEach((Layer, Index) => {
 		if (Layer.visible) {
 			MainCtx.save();
 			MainCtx.globalAlpha = Layer.opacity;
 			
-			const offset = LayerOffsets[index] || { x: 0, y: 0 };
-			const scale = LayerScales[index] || 1;
+			const Offset = LayerOffsets[Index] || { x: 0, y: 0 };
+			const Scale = LayerScales[Index] || 1;
 			
-			MainCtx.translate(offset.x, offset.y);
-			MainCtx.scale(scale, scale);
+			MainCtx.translate(Offset.x, Offset.y);
+			MainCtx.scale(Scale, Scale);
 			
 			MainCtx.drawImage(Layer.canvas, 0, 0);
 			MainCtx.restore();
@@ -331,141 +336,127 @@ function SetupEventListeners() {
 	Canvas.addEventListener('pointermove', Draw);
 	Canvas.addEventListener('pointerup', StopDrawing);
 	Canvas.addEventListener('pointerout', StopDrawing);
-	document.addEventListener('keydown', (e) => {
-		if (e.ctrlKey && e.key === 'z') Undo();
-		if (e.ctrlKey && e.key === 'y') Redo();
+	document.addEventListener('keydown', (E) => {
+		if (E.ctrlKey && E.key === 'z') Undo();
+		if (E.ctrlKey && E.key === 'y') Redo();
 	});
-	Canvas.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                return false;
-        });
+	Canvas.addEventListener('contextmenu', function(E) {
+        E.preventDefault();
+        return false;
+    });
 }
 
-function SetTool(Tool) {
-	CurrentTool = Tool;
-	document.querySelectorAll('.ToolButton').forEach(Button => {
-		Button.style.backgroundColor = '#ddd';
-	});
-	const ActiveButton = document.querySelector(`.ToolButton[data-tool="${Tool}"]`);
-	if (ActiveButton) {
-		ActiveButton.style.backgroundColor = '#999';
-	}
-}
-
-function StartDrawing(e) {
-	if (!CurrentBrush) return;
+function StartDrawing(E) {
+	if (!SelectedTool) return;
 	
 	IsDrawing = true;
 	
-	// Handle different tool types
-	if (CurrentBrush.type === 'zoom') {
-		ZoomStartY = e.clientY;
-	} else if (CurrentBrush.type === 'pan') {
-		MoveStartX = e.clientX;
-		MoveStartY = e.clientY;
-	} else if (CurrentBrush.type === 'move') {
-		MoveStartX = e.clientX;
-		MoveStartY = e.clientY;
-	} else if (CurrentBrush.type === 'scale') {
-		ScaleStartY = e.clientY;
+	if (SelectedTool.type === 'zoom') {
+		ZoomStartY = E.clientY;
+	} else if (SelectedTool.type === 'pan') {
+		MoveStartX = E.clientX;
+		MoveStartY = E.clientY;
+	} else if (SelectedTool.type === 'move') {
+		MoveStartX = E.clientX;
+		MoveStartY = E.clientY;
+	} else if (SelectedTool.type === 'scale') {
+		ScaleStartY = E.clientY;
 		ScaleStartScale = LayerScales[CurrentLayer] || 1;
-	} else {
-		// Regular drawing - get canvas coordinates
-		const coords = getCanvasCoordinates(e.clientX, e.clientY);
+	} else if (SelectedTool.type === 'picker') {
+        PickColor(E);
+    } else {
+		const Coords = GetCanvasCoordinates(E.clientX, E.clientY);
 		
-		// Apply layer transformations
-		const offset = LayerOffsets[CurrentLayer] || { x: 0, y: 0 };
-		const scale = LayerScales[CurrentLayer] || 1;
-		LastX = (coords.x - offset.x) / scale;
-		LastY = (coords.y - offset.y) / scale;
+		const Offset = LayerOffsets[CurrentLayer] || { x: 0, y: 0 };
+		const Scale = LayerScales[CurrentLayer] || 1;
+		LastX = (Coords.x - Offset.x) / Scale;
+		LastY = (Coords.y - Offset.y) / Scale;
 	}
 	
-	LastPressure = e.pressure || 0.5;
+	LastPressure = E.pressure || 0.5;
 }
 
-// Replace the Draw function
-function Draw(e) {
-	if (!IsDrawing || !CurrentBrush) return;
+function Draw(E) {
+	if (!IsDrawing || !SelectedTool) return;
 
-	if (CurrentBrush.type === 'zoom') {
-		const deltaY = ZoomStartY - e.clientY;
-		const zoomSensitivity = CurrentBrush.properties.zoomSensitivity || 0.01;
-		const minZoom = CurrentBrush.properties.minZoom || 0.1;
-		const maxZoom = CurrentBrush.properties.maxZoom || 10;
+	if (SelectedTool.type === 'zoom') {
+		const DeltaY = ZoomStartY - E.clientY;
+		const ZoomSensitivity = SelectedTool.properties.zoomSensitivity || 0.01;
+		const MinZoom = SelectedTool.properties.minZoom || 0.1;
+		const MaxZoom = SelectedTool.properties.maxZoom || 10;
 		
-		const container = document.getElementById('CanvasContainer');
-		const containerRect = container.getBoundingClientRect();
-		const centerX = containerRect.width / 2;
-		const centerY = containerRect.height / 2;
+		const Container = document.getElementById('CanvasContainer');
+		const ContainerRect = Container.getBoundingClientRect();
+		const CenterX = ContainerRect.width / 2;
+		const CenterY = ContainerRect.height / 2;
 		
-		const oldZoom = CanvasZoom;
-		const newZoom = Math.max(minZoom, Math.min(maxZoom, CanvasZoom + deltaY * zoomSensitivity));
+		const OldZoom = CanvasZoom;
+		const NewZoom = Math.max(MinZoom, Math.min(MaxZoom, CanvasZoom + DeltaY * ZoomSensitivity));
 		
-		const zoomRatio = newZoom / oldZoom;
-		CanvasOffsetX = centerX - (centerX - CanvasOffsetX) * zoomRatio;
-		CanvasOffsetY = centerY - (centerY - CanvasOffsetY) * zoomRatio;
+		const ZoomRatio = NewZoom / OldZoom;
+		CanvasOffsetX = CenterX - (CenterX - CanvasOffsetX) * ZoomRatio;
+		CanvasOffsetY = CenterY - (CenterY - CanvasOffsetY) * ZoomRatio;
 		
-		CanvasZoom = newZoom;
-		ZoomStartY = e.clientY;
-		
-		UpdateCanvasTransform();
-		return;
-	}
-	
-	if (CurrentBrush.type === 'pan') {
-		const deltaX = e.clientX - MoveStartX;
-		const deltaY = e.clientY - MoveStartY;
-		
-		CanvasOffsetX += deltaX;
-		CanvasOffsetY += deltaY;
-		
-		MoveStartX = e.clientX;
-		MoveStartY = e.clientY;
+		CanvasZoom = NewZoom;
+		ZoomStartY = E.clientY;
 		
 		UpdateCanvasTransform();
 		return;
 	}
 	
-	if (CurrentBrush.type === 'move') {
-		const deltaX = e.clientX - MoveStartX;
-		const deltaY = e.clientY - MoveStartY;
+	if (SelectedTool.type === 'pan') {
+		const DeltaX = E.clientX - MoveStartX;
+		const DeltaY = E.clientY - MoveStartY;
+		
+		CanvasOffsetX += DeltaX;
+		CanvasOffsetY += DeltaY;
+		
+		MoveStartX = E.clientX;
+		MoveStartY = E.clientY;
+		
+		UpdateCan‌vasTransform();
+		return;
+	}
+	
+	if (SelectedTool.type === 'move') {
+		const DeltaX = E.clientX - MoveStartX;
+		const DeltaY = E.clientY - MoveStartY;
 		
 		if (!LayerOffsets[CurrentLayer]) {
 			LayerOffsets[CurrentLayer] = { x: 0, y: 0 };
 		}
 		
-		LayerOffsets[CurrentLayer].x += deltaX / CanvasZoom;
-		LayerOffsets[CurrentLayer].y += deltaY / CanvasZoom;
+		LayerOffsets[CurrentLayer].x += DeltaX / CanvasZoom;
+		LayerOffsets[CurrentLayer].y += DeltaY / CanvasZoom;
 		
-		MoveStartX = e.clientX;
-		MoveStartY = e.clientY;
-		
-		UpdateCanvas();
-		return;
-	}
-	
-	if (CurrentBrush.type === 'scale') {
-		const deltaY = ScaleStartY - e.clientY;
-		const scaleSensitivity = CurrentBrush.properties.scaleSensitivity || 0.005;
-		const minScale = CurrentBrush.properties.minScale || 0.1;
-		const maxScale = CurrentBrush.properties.maxScale || 5;
-		
-		const newScale = Math.max(minScale, Math.min(maxScale, ScaleStartScale + deltaY * scaleSensitivity));
-		LayerScales[CurrentLayer] = newScale;
+		MoveStartX = E.clientX;
+		MoveStartY = E.clientY;
 		
 		UpdateCanvas();
 		return;
 	}
 	
-	// Regular drawing
-	const coords = getCanvasCoordinates(e.clientX, e.clientY);
+	if (SelectedTool.type === 'scale') {
+		const DeltaY = ScaleStartY - E.clientY;
+		const ScaleSensitivity = SelectedTool.properties.scaleSensitivity || 0.005;
+		const MinScale = SelectedTool.properties.minScale || 0.1;
+		const MaxScale = SelectedTool.properties.maxScale || 5;
+		
+		const NewScale = Math.max(MinScale, Math.min(MaxScale, ScaleStartScale + DeltaY * ScaleSensitivity));
+		LayerScales[CurrentLayer] = NewScale;
+		
+		UpdateCanvas();
+		return;
+	}
 	
-	const offset = LayerOffsets[CurrentLayer] || { x: 0, y: 0 };
-	const scale = LayerScales[CurrentLayer] || 1;
-	const transformedX = (coords.x - offset.x) / scale;
-	const transformedY = (coords.y - offset.y) / scale;
+	const Coords = GetCanvasCoordinates(E.clientX, E.clientY);
 	
-	const RawPressure = e.pressure !== undefined ? e.pressure : 0.5;
+	const Offset = LayerOffsets[CurrentLayer] || { x: 0, y: 0 };
+	const Scale = LayerScales[CurrentLayer] || 1;
+	const TransformedX = (Coords.x - Offset.x) / Scale;
+	const TransformedY = (Coords.y - Offset.y) / Scale;
+	
+	const RawPressure = E.pressure !== undefined ? E.pressure : 0.5;
 	const AdjustedPressure = PressureSensitivity > 0
 		? Math.pow(RawPressure, 1 / PressureSensitivity)
 		: 1;
@@ -474,10 +465,10 @@ function Draw(e) {
 
 	CurrentCtx.beginPath();
 	CurrentCtx.moveTo(LastX, LastY);
-	CurrentCtx.lineTo(transformedX, transformedY);
+	CurrentCtx.lineTo(TransformedX, TransformedY);
 
-	if (CurrentBrush && CurrentBrush.properties) {
-		CurrentCtx.globalCompositeOperation = CurrentBrush.properties.globalCompositeOperation || 'source-over';
+	if (SelectedTool && SelectedTool.properties) {
+		CurrentCtx.globalCompositeOperation = SelectedTool.properties.globalCompositeOperation || 'source-over';
 		
 		CurrentCtx.lineWidth = CurrentSize * AdjustedPressure;
 		CurrentCtx.strokeStyle = CurrentColor;
@@ -487,21 +478,19 @@ function Draw(e) {
 	
 	CurrentCtx.stroke();
 
-	LastX = transformedX;
-	LastY = transformedY;
+	LastX = TransformedX;
+	LastY = TransformedY;
 	UpdateCanvas();
 }
 
-// Replace the StopDrawing function
 function StopDrawing() {
 	if (IsDrawing) {
 		IsDrawing = false;
-		if (CurrentBrush && CurrentBrush.properties && CurrentBrush.properties.globalCompositeOperation) {
+		if (SelectedTool && SelectedTool.properties && SelectedTool.properties.globalCompositeOperation) {
 			Layers[CurrentLayer].ctx.globalCompositeOperation = 'source-over';
 		}
 		
-		// Don't save state for view-only tools (pan/zoom)
-		if (CurrentBrush && (CurrentBrush.type === 'zoom' || CurrentBrush.type === 'pan')) {
+		if (SelectedTool && (SelectedTool.type === 'zoom' || SelectedTool.type === 'pan' || SelectedTool.type === 'picker')) {
 			return;
 		}
 		
@@ -566,7 +555,7 @@ function UpdateLayerPanel() {
 		`;
 		
 		const PreviewCtx = PreviewCanvas.getContext('2d');
-		drawCheckerboard(PreviewCtx, 40, 30, 5);
+		DrawCheckerboard(PreviewCtx, 40, 30, 5);
 		
 		const ScaleFactorX = 40 / Canvas.width;
 		const ScaleFactorY = 30 / Canvas.height;
@@ -599,8 +588,8 @@ function UpdateLayerPanel() {
 			padding: 0;
 			font-size: 12px;
 		`;
-		VisibilityBtn.onclick = (e) => {
-			e.stopPropagation();
+		VisibilityBtn.onclick = (E) => {
+			E.stopPropagation();
 			Layer.visible = !Layer.visible;
 			UpdateCanvas();
 			UpdateLayerPanel();
@@ -619,8 +608,8 @@ function UpdateLayerPanel() {
 			padding: 0;
 			line-height: 15px;
 		`;
-		DeleteBtn.onclick = (e) => {
-			e.stopPropagation();
+		DeleteBtn.onclick = (E) => {
+			E.stopPropagation();
 			RemoveLayer(Index);
 		};
 
@@ -634,8 +623,8 @@ function UpdateLayerPanel() {
 			width: 40px;
 			margin-top: 4px;
 		`;
-		OpacitySlider.oninput = (e) => {
-			Layer.opacity = parseFloat(e.target.value);
+		OpacitySlider.oninput = (E) => {
+			Layer.opacity = parseFloat(E.target.value);
 			UpdateCanvas();
 		};
 
@@ -662,10 +651,12 @@ function UpdateLayerPanel() {
 			align-items: center;
 			justify-content: center;
 		`;
-		UpArrow.onclick = (e) => {
-			e.stopPropagation();
+		UpArrow.onclick = (E) => {
+			E.stopPropagation();
 			if (Index > 0) {
 				[Layers[Index], Layers[Index - 1]] = [Layers[Index - 1], Layers[Index]];
+				[LayerOffsets[Index], LayerOffsets[Index - 1]] = [LayerOffsets[Index - 1], LayerOffsets[Index]];
+				[LayerScales[Index], LayerScales[Index - 1]] = [LayerScales[Index - 1], LayerScales[Index]];
 				if (CurrentLayer === Index) CurrentLayer--;
 				else if (CurrentLayer === Index - 1) CurrentLayer++;
 				UpdateCanvas();
@@ -678,10 +669,12 @@ function UpdateLayerPanel() {
 		DownArrow.innerHTML = '&#9660;';
 		DownArrow.style.cssText = UpArrow.style.cssText;
 		DownArrow.style.color = Index === Layers.length - 1 ? '#999' : '#333';
-		DownArrow.onclick = (e) => {
-			e.stopPropagation();
+		DownArrow.onclick = (E) => {
+			E.stopPropagation();
 			if (Index < Layers.length - 1) {
 				[Layers[Index], Layers[Index + 1]] = [Layers[Index + 1], Layers[Index]];
+				[LayerOffsets[Index], LayerOffsets[Index + 1]] = [LayerOffsets[Index + 1], LayerOffsets[Index]];
+				[LayerScales[Index], LayerScales[Index + 1]] = [LayerScales[Index + 1], LayerScales[Index]];
 				if (CurrentLayer === Index) CurrentLayer++;
 				else if (CurrentLayer === Index + 1) CurrentLayer--;
 				UpdateCanvas();
@@ -714,15 +707,15 @@ function UpdateLayerPanel() {
 	});
 }
 
-function drawCheckerboard(ctx, width, height, size) {
-	ctx.fillStyle = '#f0f0f0';
-	ctx.fillRect(0, 0, width, height);
-	ctx.fillStyle = '#cccccc';
+function DrawCheckerboard(Ctx, Width, Height, Size) {
+	Ctx.fillStyle = '#f0f0f0';
+	Ctx.fillRect(0, 0, Width, Height);
+	Ctx.fillStyle = '#cccccc';
 	
-	for (let y = 0; y < height; y += size) {
-		for (let x = 0; x < width; x += size) {
-			if ((x / size + y / size) % 2 === 0) {
-				ctx.fillRect(x, y, size, size);
+	for (let Y = 0; Y < Height; Y += Size) {
+		for (let X = 0; X < Width; X += Size) {
+			if ((X / Size + Y / Size) % 2 === 0) {
+				Ctx.fillRect(X, Y, Size, Size);
 			}
 		}
 	}
@@ -757,12 +750,12 @@ function SaveCanvas() {
 		SaveButton.style.backgroundColor = '#999';
 
 		const SaveData = {
-			layers: Layers.map((layer, index) => ({
-				data: layer.canvas.toDataURL(),
-				visible: layer.visible,
-				opacity: layer.opacity,
-				offset: LayerOffsets[index] || { x: 0, y: 0 },
-				scale: LayerScales[index] || 1
+			layers: Layers.map((Layer, Index) => ({
+				data: Layer.canvas.toDataURL(),
+				visible: Layer.visible,
+				opacity: Layer.opacity,
+				offset: LayerOffsets[Index] || { x: 0, y: 0 },
+				scale: LayerScales[Index] || 1
 			})),
 			canvasWidth: Canvas.width,
 			canvasHeight: Canvas.height,
@@ -786,11 +779,11 @@ function LoadCanvas() {
 	const Input = document.createElement('input');
 	Input.type = 'file';
 	Input.accept = '.cnv';
-	Input.onchange = (e) => {
-		const File = e.target.files[0];
+	Input.onchange = (E) => {
+		const File = E.target.files[0];
 		const Reader = new FileReader();
-		Reader.onload = (event) => {
-			const SaveData = JSON.parse(event.target.result);
+		Reader.onload = (Event) => {
+			const SaveData = JSON.parse(Event.target.result);
 			
 			Layers = [];
 			LayerOffsets = [];
@@ -799,7 +792,6 @@ function LoadCanvas() {
 			Canvas.width = SaveData.canvasWidth;
 			Canvas.height = SaveData.canvasHeight;
 			
-			// Reset view on load
 			ResetView();
 
 			if (SaveData.backgroundColor) {
@@ -816,8 +808,8 @@ function LoadCanvas() {
 				Canvas.style.background = 'white';
 			}
 
-			const LayerPromises = SaveData.layers.map((layerData, index) => {
-				return new Promise((resolve) => {
+			const LayerPromises = SaveData.layers.map((LayerData, Index) => {
+				return new Promise((Resolve) => {
 					const NewCanvas = document.createElement('canvas');
 					NewCanvas.width = SaveData.canvasWidth;
 					NewCanvas.height = SaveData.canvasHeight;
@@ -826,28 +818,28 @@ function LoadCanvas() {
 					const Img = new Image();
 					Img.onload = () => {
 						NewCtx.drawImage(Img, 0, 0);
-						resolve({
+						Resolve({
 							canvas: NewCanvas,
 							ctx: NewCtx,
-							visible: layerData.visible,
-							opacity: layerData.opacity !== undefined ? layerData.opacity : 1,
-							offset: layerData.offset || { x: 0, y: 0 },
-							scale: layerData.scale || 1
+							visible: LayerData.visible,
+							opacity: LayerData.opacity !== undefined ? LayerData.opacity : 1,
+							offset: LayerData.offset || { x: 0, y: 0 },
+							scale: LayerData.scale || 1
 						});
 					};
-					Img.src = layerData.data;
+					Img.src = LayerData.data;
 				});
 			});
 
-			Promise.all(LayerPromises).then(loadedLayers => {
-				Layers = loadedLayers.map(l => ({
-					canvas: l.canvas,
-					ctx: l.ctx,
-					visible: l.visible,
-					opacity: l.opacity
+			Promise.all(LayerPromises).then(LoadedLayers => {
+				Layers = LoadedLayers.map(L => ({
+					canvas: L.canvas,
+					ctx: L.ctx,
+					visible: L.visible,
+					opacity: L.opacity
 				}));
-				LayerOffsets = loadedLayers.map(l => l.offset);
-				LayerScales = loadedLayers.map(l => l.scale);
+				LayerOffsets = LoadedLayers.map(L => L.offset);
+				LayerScales = LoadedLayers.map(L => L.scale);
 
 				UndoStack = [];
 				RedoStack = [];
@@ -879,16 +871,16 @@ function ExportCanvas() {
 			ExportCtx.fillRect(0, 0, Canvas.width, Canvas.height);
 		}
 
-		Layers.forEach((Layer, index) => {
+		Layers.forEach((Layer, Index) => {
 			if (Layer.visible) {
 				ExportCtx.save();
 				ExportCtx.globalAlpha = Layer.opacity;
 				
-				const offset = LayerOffsets[index] || { x: 0, y: 0 };
-				const scale = LayerScales[index] || 1;
+				const Offset = LayerOffsets[Index] || { x: 0, y: 0 };
+				const Scale = LayerScales[Index] || 1;
 				
-				ExportCtx.translate(offset.x, offset.y);
-				ExportCtx.scale(scale, scale);
+				ExportCtx.translate(Offset.x, Offset.y);
+				ExportCtx.scale(Scale, Scale);
 				
 				ExportCtx.drawImage(Layer.canvas, 0, 0);
 				ExportCtx.restore();
@@ -909,19 +901,17 @@ function ExportCanvas() {
 function SaveState() {
 	RedoStack = [];
 	
-	const state = {
-		layers: Layers.map((layer, index) => ({
-			data: layer.canvas.toDataURL(),
-			visible: layer.visible,
-			opacity: layer.opacity,
-			offset: LayerOffsets[index] || { x: 0, y: 0 },
-			scale: LayerScales[index] || 1
-		})),
-		currentLayer: CurrentLayer,
-		backgroundColor: BackgroundColor
+	const State = {
+		layers: Layers.map((Layer, Index) => ({
+			data: Layer.canvas.toDataURL(),
+			visible: Layer.visible,
+			opacity: Layer.opacity,
+			offset: LayerOffsets[Index] || { x: 0, y: 0 },
+			scale: LayerScales[Index] || 1
+		}))
 	};
 	
-	UndoStack.push(JSON.stringify(state));
+	UndoStack.push(JSON.stringify(State));
 	if (UndoStack.length > MaxUndoSteps) {
 		UndoStack.shift();
 	}
@@ -945,28 +935,14 @@ function Redo() {
 	}
 }
 
-function LoadStateFromJSON(stateJSON) {
-	const state = JSON.parse(stateJSON);
+function LoadStateFromJSON(StateJSON) {
+	const State = JSON.parse(StateJSON);
 	Layers = [];
 	LayerOffsets = [];
 	LayerScales = [];
 	
-	BackgroundColor = state.backgroundColor || null;
-	
-	if (BackgroundColor) {
-		if (document.getElementById('BackgroundColorSwatch')) {
-			document.getElementById('BackgroundColorSwatch').style.background = BackgroundColor;
-		}
-		Canvas.style.background = BackgroundColor;
-	} else {
-		if (document.getElementById('BackgroundColorSwatch')) {
-			document.getElementById('BackgroundColorSwatch').style.background = '';
-		}
-		Canvas.style.background = 'white';
-	}
-	
-	const layerPromises = state.layers.map((layerData) => {
-		return new Promise((resolve) => {
+	const LayerPromises = State.layers.map((LayerData) => {
+		return new Promise((Resolve) => {
 			const NewCanvas = document.createElement('canvas');
 			NewCanvas.width = Canvas.width;
 			NewCanvas.height = Canvas.height;
@@ -975,30 +951,32 @@ function LoadStateFromJSON(stateJSON) {
 			const Img = new Image();
 			Img.onload = () => {
 				NewCtx.drawImage(Img, 0, 0);
-				resolve({
+				Resolve({
 					canvas: NewCanvas,
 					ctx: NewCtx,
-					visible: layerData.visible,
-					opacity: layerData.opacity,
-					offset: layerData.offset || { x: 0, y: 0 },
-					scale: layerData.scale || 1
+					visible: LayerData.visible,
+					opacity: LayerData.opacity,
+					offset: LayerData.offset || { x: 0, y: 0 },
+					scale: LayerData.scale || 1
 				});
 			};
-			Img.src = layerData.data;
+			Img.src = LayerData.data;
 		});
 	});
 	
-	Promise.all(layerPromises).then(loadedLayers => {
-		Layers = loadedLayers.map(l => ({
-			canvas: l.canvas,
-			ctx: l.ctx,
-			visible: l.visible,
-			opacity: l.opacity
+	Promise.all(LayerPromises).then(LoadedLayers => {
+		Layers = LoadedLayers.map(L => ({
+			canvas: L.canvas,
+			ctx: L.ctx,
+			visible: L.visible,
+			opacity: L.opacity
 		}));
-		LayerOffsets = loadedLayers.map(l => l.offset);
-		LayerScales = loadedLayers.map(l => l.scale);
+		LayerOffsets = LoadedLayers.map(L => L.offset);
+		LayerScales = LoadedLayers.map(L => L.scale);
 		
-		CurrentLayer = state.currentLayer || 0;
+		if (CurrentLayer >= Layers.length) {
+            CurrentLayer = Math.max(0, Layers.length - 1);
+        }
 		Ctx = Layers[CurrentLayer].ctx;
 		
 		UpdateLayerPanel();
@@ -1010,11 +988,11 @@ function ImportImage() {
 	const Input = document.createElement('input');
 	Input.type = 'file';
 	Input.accept = 'image/*';
-	Input.onchange = (e) => {
-		const File = e.target.files[0];
+	Input.onchange = (E) => {
+		const File = E.target.files[0];
 		if (File) {
 			const Reader = new FileReader();
-			Reader.onload = (event) => {
+			Reader.onload = (Event) => {
 				const Img = new Image();
 				Img.onload = () => {
 					const NewCanvas = document.createElement('canvas');
@@ -1052,7 +1030,7 @@ function ImportImage() {
 					UpdateCanvas();
 					SaveState();
 				};
-				Img.src = event.target.result;
+				Img.src = Event.target.result;
 			};
 			Reader.readAsDataURL(File);
 		}
@@ -1060,13 +1038,13 @@ function ImportImage() {
 	Input.click();
 }
 
-function getCanvasCoordinates(clientX, clientY) {
-	const rect = Canvas.getBoundingClientRect();
-	const scaleX = Canvas.width / rect.width;
-	const scaleY = Canvas.height / rect.height;
+function GetCanvasCoordinates(ClientX, ClientY) {
+	const Rect = Canvas.getBoundingClientRect();
+	const ScaleX = Canvas.width / Rect.width;
+	const ScaleY = Canvas.height / Rect.height;
 	return {
-		x: (clientX - rect.left) * scaleX,
-		y: (clientY - rect.top) * scaleY
+		x: (ClientX - Rect.left) * ScaleX,
+		y: (ClientY - Rect.top) * ScaleY
 	};
 }
 
@@ -1085,4 +1063,57 @@ function ResetView() {
 	CanvasOffsetX = 0;
 	CanvasOffsetY = 0;
 	UpdateCanvasTransform();
+}
+
+function PickColor(E) {
+    const Coords = GetCanvasCoordinates(E.clientX, E.clientY);
+    
+    const CompositeCanvas = document.createElement('canvas');
+    CompositeCanvas.width = Canvas.width;
+    CompositeCanvas.height = Canvas.height;
+    const CompositeCtx = CompositeCanvas.getContext('2d');
+    
+    if (BackgroundColor) {
+        CompositeCtx.fillStyle = BackgroundColor;
+        CompositeCtx.fillRect(0, 0, CompositeCanvas.width, CompositeCanvas.height);
+    }
+    
+    Layers.forEach((Layer, Index) => {
+        if (Layer.visible) {
+            CompositeCtx.save();
+            CompositeCtx.globalAlpha = Layer.opacity;
+            
+            const Offset = LayerOffsets[Index] || { x: 0, y: 0 };
+            const Scale = LayerScales[Index] || 1;
+            
+            CompositeCtx.translate(Offset.x, Offset.y);
+            CompositeCtx.scale(Scale, Scale);
+            
+            CompositeCtx.drawImage(Layer.canvas, 0, 0);
+            CompositeCtx.restore();
+        }
+    });
+    
+    const PixelData = CompositeCtx.getImageData(Math.floor(Coords.x), Math.floor(Coords.y), 1, 1).data;
+    
+    const R = PixelData[0];
+    const G = PixelData[1];
+    const B = PixelData[2];
+    const A = PixelData[3];
+    
+    let HexColor;
+    if (A === 0 && !BackgroundColor) {
+        HexColor = '#ffffff';
+    } else {
+        HexColor = '#' + 
+            R.toString(16).padStart(2, '0') + 
+            G.toString(16).padStart(2, '0') + 
+            B.toString(16).padStart(2, '0');
+    }
+    
+    if (SelectedColorButton) {
+        SelectedColorButton.style.background = HexColor;
+        SelectedColorButton.dataset.currentColor = HexColor;
+        CurrentColor = HexColor;
+    }
 }

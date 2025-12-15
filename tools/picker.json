@@ -1,0 +1,7 @@
+{
+    "name": "Color Picker",
+    "icon": "💧",
+    "description": "Pick a color from the canvas",
+    "type": "picker",
+    "properties": {}
+}

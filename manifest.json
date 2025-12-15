@@ -12,12 +12,13 @@
             "type": "image/png"
         }
     ],
-	"brushes": [
+	"tools": [
 		{ "file": "pencil.json" },
 		{ "file": "eraser.json" },
 		{ "file": "pan.json" },
 		{ "file": "zoom.json" },
 		{ "file": "move.json" },
-		{ "file": "scale.json" }
+		{ "file": "scale.json" },
+		{ "file": "picker.json" }
 	]
 }
